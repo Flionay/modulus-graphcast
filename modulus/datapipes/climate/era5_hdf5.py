@@ -326,16 +326,25 @@ class ERA5HDF5Datapipe(Datapipe):
         # load normalisation values
         mean_stat_file = self.stats_dir / Path("global_means.npy")
         std_stat_file = self.stats_dir / Path("global_stds.npy")
+        time_diff_mean_file = self.stats_dir / Path("time_diff_mean.npy")
+        time_diff_std_file = self.stats_dir / Path("time_diff_std.npy")
 
         if not mean_stat_file.exists():
             raise IOError(f"Mean statistics file {mean_stat_file} not found")
         if not std_stat_file.exists():
             raise IOError(f"Std statistics file {std_stat_file} not found")
 
+        if not time_diff_mean_file.exists():
+            raise IOError(f"Time diff mean statistics file {time_diff_mean_file} not found")
+        if not time_diff_std_file.exists():
+            raise IOError(f"Time diff std statistics file {time_diff_std_file} not found")
+
         # has shape [1, C, 1, 1]
         self.mu = np.load(str(mean_stat_file))[:, self.channels]
+        self.diff_mu = np.load(str(time_diff_mean_file))[:, self.channels]
         # has shape [1, C, 1, 1]
         self.sd = np.load(str(std_stat_file))[:, self.channels]
+        self.diff_std = np.load(str(time_diff_std_file))[:, self.channels]
 
         if not self.mu.shape == self.sd.shape == (1, len(self.channels), 1, 1):
             raise AssertionError("Error, normalisation arrays have wrong shape")
@@ -396,6 +405,7 @@ class ERA5HDF5Datapipe(Datapipe):
             else:
                 invar = invar[:, :, :h, :w]
             outvar = outvar[:, :, :h, :w]
+            out_diff = outvar - invar
 
             # Standardize.
             if self.stats_dir is not None:
@@ -403,7 +413,10 @@ class ERA5HDF5Datapipe(Datapipe):
                     invar = dali.fn.normalize(invar, mean=self.mu[0], stddev=self.sd[0])
                 else:
                     invar = dali.fn.normalize(invar, mean=self.mu, stddev=self.sd)
-                outvar = dali.fn.normalize(outvar, mean=self.mu, stddev=self.sd)
+                #outvar = dali.fn.normalize(outvar, mean=self.mu, stddev=self.sd)
+                
+                outvar_diff = dali.fn.normalize(out_diff, mean=self.diff_mu, stddev=self.diff_std)
+                outvar = outvar_diff
 
             # Resize.
             if self.interpolation_type is not None:

@@ -210,6 +210,11 @@ class GraphCastLossFunction(nn.Module):
         surface_weights = {i: 0.1 for i in self.channel_dict["surface"]}
         if "t2m" in surface_weights:
             surface_weights["t2m"] = 1
+        
+        # 增加风速的权重
+        for i in self.channel_dict["surface"]:
+            if '10' in i:
+                surface_weights[i] = 1
         return surface_weights
 
     def assign_atmosphere_weights(self):

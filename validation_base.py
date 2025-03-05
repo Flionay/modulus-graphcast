@@ -109,6 +109,15 @@ class Validation:
             )
             for t in range(outvar.shape[0]):
                 outpred = self.model(invar_cat)
+                
+                # 归一化的diff + 归一化的输入 = 下一轮的输入 = （上一轮真实预测的归一化）=归一化（逆归一化的diff+逆归一化的上一轮输入）
+                
+                outpred_unorm_diff = self.val_datapipe.diff_mu + self.val_datapipe.diff_std * outpred
+                invar_unorm = self.val_datapipe.invar_mu + self.val_datapipe.invar_std * invar_cat
+                # 真实输出预测
+                outpred_true = outpred_unorm_diff + invar_unorm
+                # 归一化真实输出预测 作为下一轮的输入
+                outpred = (outpred_true - self.val_datapipe.invar_mu) / self.val_datapipe.invar_std
                 pred[t] = outpred
                 if self.num_history > 0:
                     # drop the first time step, and append the prediction as the last time step in invar
