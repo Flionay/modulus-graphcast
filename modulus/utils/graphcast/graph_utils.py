@@ -153,6 +153,20 @@ def add_edge_features(graph: DGLGraph, pos: Tensor, normalize: bool = True) -> D
         )
     else:
         graph.edata["x"] = torch.cat((disp, disp_norm), dim=-1)
+        
+    # 新增可学习的特征增强层
+    edge_feat = graph.edata["x"]  # 原始特征 [num_edges, 4]
+    
+    # 添加相对位置编码（学习不同距离的相互作用模式）
+    rel_pos = src_pos - dst_pos
+    edge_feat = torch.cat([edge_feat, rel_pos], dim=-1)  # 新增维度
+    
+    # 添加基于正弦的位置编码（捕获多尺度空间关系）
+    freq_bands = torch.logspace(-2, 2, 16)  # 10^-2 ~ 10^2
+    pos_enc = torch.sin(rel_pos.unsqueeze(-1) * freq_bands) 
+    edge_feat = torch.cat([edge_feat, pos_enc.flatten(-2,-1)], dim=-1)
+    
+    graph.edata["x"] = edge_feat 
     return graph
 
 
